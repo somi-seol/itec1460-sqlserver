@@ -25,25 +25,25 @@ ROUND(SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)), 2) AS TotalPurchase
 FROM Customers c 
 INNER JOIN Orders o ON c.CustomerID = o.CustomerID 
 INNER JOIN [Order Details] od ON o.OrderID = od.OrderID 
-WHERE YEAR(o.OrderDate) = 2001 
+WHERE YEAR(o.OrderDate) = 1997
 GROUP BY c.CustomerID, c.CompanyName 
 ORDER BY TotalPurchase DESC;
 
 
 -- part 2
--- What is the total revenue for each customer in the year 1997, and how many orders did they place?
-
+-- what is the total revenue for each customer in the year 1997, and how many orders did they place?
 SELECT TOP 10
     o.CustomerID,
-    od.OrderDetails,
-    ROUND(SUM(UnitPrice * Quantity * (1 - Discount)), 2) AS TotalRevenue,
-    COUNT(od.OrderID)
-FROM 
-    Orders o
-    JOIN OrderDetails od ON o.OrderID = od.OrderID
+    c.CompanyName, 
+    ROUND(SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)), 2) AS TotalRevenue,
+    COUNT(DISTINCT o.OrderID) AS OrderCount 
+FROM Orders o
+JOIN [Order Details] od 
+    ON o.OrderID = od.OrderID
+JOIN Customers c 
+    ON o.CustomerID = c.CustomerID 
 WHERE YEAR(o.OrderDate) = 1997
 GROUP BY 
-    o.CustomerID,
-    od.OrderDetails
-ORDER BY 
-    TotalRevenue DESC
+    o.CustomerID, 
+    c.CompanyName 
+ORDER BY TotalRevenue DESC;
