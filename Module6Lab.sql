@@ -123,3 +123,57 @@ WHERE BookID = 1;
 
 -- Check the audit table; test trigger update
 SELECT * FROM BookPriceAudit;
+
+-- part 2
+
+CREATE TABLE BookReviews ( 
+    ReviewID INT PRIMARY KEY, 
+    BookID INT, 
+    CustomerID NCHAR(5), 
+    Rating INT CHECK (Rating BETWEEN 1 AND 5), 
+    ReviewText NVARCHAR(MAX), 
+    ReviewDate DATE, 
+    FOREIGN KEY (BookID) REFERENCES Books(BookID), 
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
+);
+
+CREATE VIEW vw_BookReviewStats AS 
+SELECT 
+    Books.Title AS BookTitle, 
+    COUNT(BookReviews.ReviewID) AS TotalNumberofReviews, 
+    AVG(BookReviews.Rating) AS AvgRating, 
+    MAX(BookReviews.ReviewDate) AS MostRecentReviewDate 
+FROM 
+    Books 
+JOIN  
+    BookReviews ON Books.BookID = BookReviews.BookID 
+GROUP BY 
+    Books.BookID, Books.Title;
+
+CREATE TRIGGER tr_ValidateReviewDate 
+ON BookReviews 
+AFTER INSERT 
+AS 
+BEGIN 
+    IF (BookReviews.ReviewDate > GETDATE())
+    BEGIN 
+        RAISERROR('ReviewDate cannot be in the future') 
+        ROLLBACK TRANSACTION 
+    END 
+END
+
+CREATE TRIGGER tr_UpdateBookRating
+AFTER INSERT OR UPDATE OR DELETE ON BookReviews
+BEGIN
+    ALTER TABLE Books
+    ADD AverageRating DECIMAL(3,2)
+
+    -- automatically update Books.AverageRating
+END
+
+-- test
+    -- insert 3 reviews
+    -- try to insert future date
+    -- query views
+    -- update review rating
+        -- check book average rating update
