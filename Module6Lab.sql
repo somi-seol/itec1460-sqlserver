@@ -148,32 +148,75 @@ FROM
 JOIN  
     BookReviews ON Books.BookID = BookReviews.BookID 
 GROUP BY 
-    Books.BookID, Books.Title;
+    Books.BookID, Books.Title
 
 CREATE TRIGGER tr_ValidateReviewDate 
 ON BookReviews 
 AFTER INSERT 
 AS 
 BEGIN 
-    IF (BookReviews.ReviewDate > GETDATE())
+    IF EXISTS (SELECT 1 FROM INSERTED WHERE ReviewDate > GETDATE()) 
     BEGIN 
-        RAISERROR('ReviewDate cannot be in the future') 
+        RAISERROR('ReviewDate cannot be in the future', 16, 1) -- severity + identifier
         ROLLBACK TRANSACTION 
     END 
 END
 
-CREATE TRIGGER tr_UpdateBookRating
-AFTER INSERT OR UPDATE OR DELETE ON BookReviews
-BEGIN
-    ALTER TABLE Books
-    ADD AverageRating DECIMAL(3,2)
+-- add AvgRating column sperately?
+ALTER TABLE Books 
+ADD AvgRating DECIMAL(3,2)
 
-    -- automatically update Books.AverageRating
+-- trigger update when review added
+CREATE TRIGGER tr_UpdateBookRating
+ON BookReviews
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    -- Update the AverageRating for the affected book
+    UPDATE Books
+    SET AverageRating = (SELECT AVG(Rating) FROM BookReviews WHERE BookID = @BookID)
+    WHERE BookID = @BookID --?
 END
 
--- test
-    -- insert 3 reviews
-    -- try to insert future date
-    -- query views
-    -- update review rating
-        -- check book average rating update
+-- Insert 3 reviews
+INSERT INTO BookReviews 
+( 
+    ReviewID, 
+    BookID, 
+    CustomerID, 
+    Rating, 
+    ReviewText, 
+    ReviewDate 
+) 
+VALUES 
+( 
+    1, 1, 'A1', 5, 'Highly recommended.', '2025-02-20' 
+), 
+( 
+    2, 2, 'A2', 4, 'Very informative.', '2025-02-18' 
+), 
+( 
+    3, 3, 'A3', 3, 'Okay read.', '2025-02-19' 
+), 
+( 
+    4, 1, 'BLONP', 2, 'Not what I expected, had issues.', '2025-03-01' -- future date
+)
+
+-- check query
+SELECT * FROM BookReviews
+
+-- update review rating
+UPDATE BookReviews 
+SET Rating = 5 
+WHERE ReviewID = 1
+
+-- check rating update
+SELECT 
+    BookID, 
+    AVG(Rating) AS AvgRating 
+FROM 
+    BookReviews 
+WHERE 
+    BookID = 1 
+GROUP BY 
+    BookID
